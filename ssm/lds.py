@@ -223,10 +223,10 @@ class SLDS(object):
                self.emissions.log_prior()
 
     def sample(self, T, input=None, tag=None, prefix=None, with_noise=True):
-        N = self.N
-        K = self.K
-        D = (self.D,) if isinstance(self.D, int) else self.D
-        M = (self.M,) if isinstance(self.M, int) else self.M
+        N = self.N # Number of observed dimensions (y)
+        K = self.K # Number of discrete states
+        D = (self.D,) if isinstance(self.D, int) else self.D # Dimension of the latent continuous state
+        M = (self.M,) if isinstance(self.M, int) else self.M # Dimension of the input
         assert isinstance(D, tuple)
         assert isinstance(M, tuple)
 
@@ -242,16 +242,17 @@ class SLDS(object):
             # Sample the first state from the initial distribution
             pi0 = self.init_state_distn.initial_state_distn
             z[0] = npr.choice(self.K, p=pi0)
-            x[0] = self.dynamics.sample_x(z[0], x[:0], tag=tag, with_noise=with_noise)
+            x[0] = self.dynamics.sample_x(z[0], x[:0], tag=tag, with_noise=with_noise) # x[:0] is an empty array - it is passed for consistency, but unused for the first step
 
         else:
             zhist, xhist, yhist = prefix
-            pad = len(zhist)
+            pad = len(zhist) # length of the known history
             assert zhist.dtype == int and zhist.min() >= 0 and zhist.max() < K
             # assert xhist.shape == (pad, D)
             assert yhist.shape == (pad, N)
 
-            z = np.concatenate((zhist, np.zeros(T, dtype=int)))
+            # Allocate larger arrays by appending zeros after known history
+            z = np.concatenate((zhist, np.zeros(T, dtype=int))) 
             x = np.concatenate((xhist, np.zeros((T,) + D)))
             # input = np.zeros((T+pad,) + M) if input is None else input
             input = np.zeros((T+pad,) + M) if input is None else np.concatenate((np.zeros((pad,) + M), input))
@@ -259,13 +260,13 @@ class SLDS(object):
 
         # Sample z and x
         for t in range(pad, T+pad):
-            Pt = np.exp(self.transitions.log_transition_matrices(x[t-1:t+1], input[t-1:t+1], mask=xmask[t-1:t+1], tag=tag))[0]
-            z[t] = npr.choice(self.K, p=Pt[z[t-1]])
-            x[t] = self.dynamics.sample_x(z[t], x[:t], input=input[t], tag=tag, with_noise=with_noise)
+            Pt = np.exp(self.transitions.log_transition_matrices(x[t-1:t+1], input[t-1:t+1], mask=xmask[t-1:t+1], tag=tag))[0] # Compute transition probabilities conditioned on x[t-1] (this is the "recurrent" part). Here you get a KxK matrix and from z[t-1] you get the discrete state (a number) that will allow you to get the row of probabilities from the state z[t-1] to the other states
+            z[t] = npr.choice(self.K, p=Pt[z[t-1]]) # Sample next discrete state z[t] using the row corresponding to z[t-1]
+            x[t] = self.dynamics.sample_x(z[t], x[:t], input=input[t], tag=tag, with_noise=with_noise) # Sample next latent continuous state x[t] from its dynamics, given z[t]
 
         # Sample observations given latent states
         # TODO: sample in the loop above?
-        y = self.emissions.sample(z, x, input=input, tag=tag)
+        y = self.emissions.sample(z, x, input=input, tag=tag) #For each time step t, generate an observation y[t] from the emission model using x[t] and z[t]
         return z[pad:], x[pad:], y[pad:]
 
     @ensure_slds_args_not_none

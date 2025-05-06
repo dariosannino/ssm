@@ -183,6 +183,7 @@ plt.legend()
 plt.xlabel("Iteration")
 plt.ylabel("ELBO")
 plt.tight_layout()
+plt.savefig("first_plot.png", dpi=150)
 
 plt.figure(figsize=[10,4])
 ax1 = plt.subplot(131)
@@ -195,11 +196,13 @@ ax3 = plt.subplot(133)
 plot_trajectory(zhat_lem, xhat_lem, ax=ax3)
 plt.title("Inferred, Laplace-EM")
 plt.tight_layout()
+plt.savefig("second_plot.png", dpi=150)
 
 plt.figure(figsize=(6,6))
 ax = plt.subplot(111)
 lim = abs(xhat_lem).max(axis=0) + 1
 plot_most_likely_dynamics(rslds_lem, xlim=(-lim[0], lim[0]), ylim=(-lim[1], lim[1]), ax=ax)
 plt.title("Most Likely Dynamics, Laplace-EM")
+plt.savefig("third_plot.png", dpi=150)
 
 plt.show()
